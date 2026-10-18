@@ -139,6 +139,7 @@ export class MusicPlayer {
 
   async resume(): Promise<void> {
     if (this.disposed || !this.snapshot.track) return;
+    if (this.snapshot.status === 'error') { await this.select(this.snapshot.index, true); return; }
     this.wantsPlayback = true;
     if (!this.sourceReady) {
       if (this.snapshot.status === 'error') await this.select(this.snapshot.index, true);
