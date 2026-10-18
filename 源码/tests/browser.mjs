@@ -28,7 +28,10 @@ try {
     assert.equal(await page.locator('.track-copy strong').first().textContent(), '把光留住');
     await page.getByRole('button', { name: '开始这一刻', exact: true }).click();
     await page.waitForFunction(() => window.__audioInstances.length === 1 && !window.__audioInstances[0].paused && window.__audioInstances[0].currentTime > .3);
-    await page.getByRole('button', { name: '今天也有值得收藏的小事', exact: true }).waitFor();
+    await page.getByRole('region', { name: '情绪字幕演出', exact: true }).waitFor();
+    await page.getByRole('heading', { name: '今天也有值得收藏的小事', exact: true }).waitFor();
+    await page.getByRole('button', { name: '微光', exact: true }).click();
+    assert.equal(await page.locator('.subtitle-theatre').getAttribute('class'), 'subtitle-theatre mood-energy reduced');
     await page.screenshot({ path: output + width + '-immersive.png', fullPage: true });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     await page.getByRole('slider', { name: '播放进度' }).fill('18000');
@@ -36,6 +39,9 @@ try {
     await page.getByRole('button', { name: '暂停播放', exact: true }).click();
     assert.equal(await page.evaluate(() => window.__audioInstances[0].paused), true);
     await page.getByRole('button', { name: '开始播放', exact: true }).click();
+    await page.getByRole('button', { name: '滚动文字', exact: true }).click();
+    await page.getByRole('button', { name: '不必等到万事俱备', exact: true }).waitFor();
+    await page.getByRole('button', { name: '字幕演出', exact: true }).click();
     await page.getByRole('button', { name: '返回发现', exact: true }).click();
     assert.equal(await page.evaluate(() => window.__audioInstances.length), 1);
     assert.equal(await page.evaluate(() => window.__audioInstances[0].paused), false);

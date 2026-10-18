@@ -78,6 +78,11 @@ export class MusicPlayer {
 
   /** Stable callbacks can be passed directly to React useSyncExternalStore. */
   getSnapshot = (): PlayerSnapshot => this.snapshot;
+  /** Read the same audio clock at animation cadence; never create a second player. */
+  getCurrentTime = (): number => {
+    if (!this.sourceReady || !Number.isFinite(this.audio.currentTime)) return this.snapshot.currentTime;
+    return Math.max(this.rangeStart, Math.min(this.audio.currentTime * 1000, this.snapshot.duration || Infinity));
+  };
   subscribe = (listener: () => void): (() => void) => {
     if (this.disposed) return () => {};
     this.listeners.add(listener);
@@ -142,7 +147,6 @@ export class MusicPlayer {
     if (this.snapshot.status === 'error') { await this.select(this.snapshot.index, true); return; }
     this.wantsPlayback = true;
     if (!this.sourceReady) {
-      if (this.snapshot.status === 'error') await this.select(this.snapshot.index, true);
       return;
     }
     if (this.snapshot.status === 'ended' || this.audio.currentTime * 1000 < this.rangeStart) this.audio.currentTime = this.rangeStart / 1000;

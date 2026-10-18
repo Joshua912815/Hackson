@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MusicPlayer } from '../src/features/player/player.ts';
 import { parseLrc, findActiveLyricIndex, formatTime } from '../src/features/player/lyrics.ts';
+import { subtitleFrame } from '../src/features/player/stage.ts';
 
 class FakeAudio extends EventTarget {
   src = ''; currentTime = 0; duration = 48; volume = 1; muted = false; paused = true; error = null;
@@ -78,4 +79,16 @@ test('试听约束跳转范围，到达片段终点即停止', async () => {
   player.seek(99999); assert.equal(audio.currentTime, 20);
   audio.dispatchEvent(new Event('timeupdate')); assert.equal(player.getSnapshot().status, 'ended');
   assert.equal(audio.paused, true); player.dispose();
+});
+test('字幕演出按音频时间选场景，后退和暂停不会积累时间', () => {
+  const lines = [{ timeMs: 0, text: '允许自己慢一点' }, { timeMs: 6000, text: '现在开始' }, { timeMs: 12000, text: '留住光' }];
+  const later = subtitleFrame(lines, 8000, 18000, 80);
+  assert.equal(later.index, 1); assert.equal(later.elapsedMs, 2000);
+  assert.equal(later.progress, 1 / 3);
+  assert.deepEqual(subtitleFrame(lines, 8000, 18000, 80), later);
+  assert.equal(subtitleFrame(lines, 1000, 18000, 80).index, 0);
+  assert.equal(subtitleFrame(lines, 16000, 18000).layout, 'closing');
+  assert.equal(subtitleFrame(lines, 6000, 18000).index, 1);
+  assert.equal(subtitleFrame([], 0, 0), null);
+  assert.equal(subtitleFrame([{ timeMs: 2000, text: '稍后' }], 0, 6000), null);
 });

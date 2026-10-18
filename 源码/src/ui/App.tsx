@@ -5,6 +5,7 @@ import { demoService } from '../services/music/demo.ts';
 import { HttpMusicService } from '../services/music/http.ts';
 import type { MusicSource, MusicService, Mood, Track, Playlist, Lyrics } from '../services/music/types.ts';
 import { Icon, type IconName } from './Icon.tsx';
+import { SubtitleStage } from './SubtitleStage.tsx';
 
 const onlineService = new HttpMusicService();
 const serviceFor = (source: MusicSource): MusicService => source === 'demo' ? demoService : onlineService;
@@ -76,11 +77,12 @@ function PlayerBar({ snapshot: s, onImmersive, onQueue, dark }: { snapshot: Play
     <div className="player-extras"><div className="volume"><IconButton name={s.muted || s.volume === 0 ? 'mute' : 'volume'} label={s.muted ? '取消静音' : '静音'} onClick={() => player.setMuted(!s.muted)} /><input type="range" min="0" max="1" step=".01" value={s.muted ? 0 : s.volume} aria-label="音量" onChange={e => { player.setMuted(false); player.setVolume(Number(e.target.value)); }} /></div><IconButton name="queue" label="打开播放队列" onClick={onQueue} /><IconButton name="expand" label="沉浸模式" disabled={!t} onClick={onImmersive} /></div>
   </footer>;
 }
-function Immersive({ snapshot: s, onBack, backRef }: { snapshot: PlayerSnapshot; onBack: () => void; backRef: RefObject<HTMLButtonElement | null> }) {
+function Immersive({ snapshot: s, onBack, backRef, mood, onMood }: { snapshot: PlayerSnapshot; onBack: () => void; backRef: RefObject<HTMLButtonElement | null>; mood: Mood; onMood: (mood: Mood) => void }) {
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   const [following, setFollowing] = useState(true);
+  const [presentation, setPresentation] = useState<'stage' | 'list'>('stage');
   const scroller = useRef<HTMLDivElement>(null);
   const active = lyrics ? findActiveLyricIndex(lyrics.lines, s.currentTime) : -1;
   const t = s.track;
@@ -100,7 +102,8 @@ function Immersive({ snapshot: s, onBack, backRef }: { snapshot: PlayerSnapshot;
   useEffect(() => { backRef.current?.focus(); }, []);
   if (!t) return null;
   return <main className="immersive" style={{ '--art': 'url("' + (t.coverUrl || '/covers/slow.svg') + '")' } as React.CSSProperties}>
-    <div className="ambient" /><div className="immersive-top"><button ref={backRef} className="text-button" onClick={onBack}><Icon name="back" />返回发现</button><span>此刻 · JUST BE HERE</span><span className="source-pill">{t.source === 'demo' ? '原创演示' : '网易云在线'}</span></div>
+    <div className="ambient" /><div className="immersive-top"><button ref={backRef} className="text-button" onClick={onBack}><Icon name="back" />返回发现</button><div className="presentation-switch" aria-label="沉浸展示方式"><button aria-pressed={presentation === 'stage'} onClick={() => setPresentation('stage')}>字幕演出</button><button aria-pressed={presentation === 'list'} onClick={() => setPresentation('list')}>滚动文字</button></div><span className="source-pill">{t.source === 'demo' ? '原创演示' : '网易云在线'}</span></div>
+    {presentation === 'stage' && lyrics?.kind === 'synced' && lyrics.lines.length > 0 ? <SubtitleStage player={player} snapshot={s} lyrics={lyrics} mood={mood} onMood={onMood} onList={() => setPresentation('list')} /> : <>
     <div className="immersive-body"><section className="album-stage"><div className="sleeve"><Cover url={t.coverUrl} title={t.title} /><div className="record-disc"><span /></div></div><div className="album-meta"><span className="eyebrow">NOW PLAYING / 此刻正在听</span><h1>{t.title}</h1><p>{t.artists.join(' / ')} <span>— {t.album}</span></p></div></section>
     <section className="lyric-stage" aria-label={t.source === 'demo' ? '同步聆听文字' : '歌词'}>
       <div className="lyric-heading"><span className="eyebrow">{t.source === 'demo' ? '同步聆听文字 · 原创器乐，无人声' : 'LYRICS / 同步歌词'}</span><span className="lyric-dot" /></div>
@@ -110,13 +113,15 @@ function Immersive({ snapshot: s, onBack, backRef }: { snapshot: PlayerSnapshot;
       </div>}
       {!following && lyrics?.kind === 'synced' && <button className="follow-button" onClick={() => setFollowing(true)}>回到当前句 <Icon name="arrow" size={16} /></button>}
       <p className="listening-note">不急着到下一刻，先好好听这一刻。</p>
-    </section></div>
+    </section></div></>}
   </main>;
 }
 export function App() {
   const s = useSyncExternalStore(player.subscribe, player.getSnapshot);
   const [source, setSource] = useState<MusicSource>('demo');
   const [mood, setMood] = useState<Mood>('calm');
+  const [stageMood, setStageMood] = useState<Mood>('calm');
+  useEffect(() => { setStageMood(mood); }, [mood]);
   const [view, setView] = useState<View>({ kind: 'discover' });
   const [query, setQuery] = useState('');
   const [content, setContent] = useState<Content>(empty);
@@ -184,7 +189,7 @@ export function App() {
         </>}
         <div className="page-footer"><span>此刻 <span className="footer-slash">/</span> 让音乐接住每一种心情。</span><button onClick={() => setDialog('about')}>关于这场声音实验 <Icon name="arrow" size={14} /></button></div>
       </main>
-    </> : <Immersive snapshot={s} onBack={closeImmersive} backRef={backRef} />}
+    </> : <Immersive snapshot={s} onBack={closeImmersive} backRef={backRef} mood={stageMood} onMood={setStageMood} />}
     {s.error && <div className={'play-error ' + (immersive ? 'on-dark' : '')} role="alert"><span>{s.error.message}</span><button onClick={() => void player.retry()}>重试</button></div>}
     <PlayerBar snapshot={s} dark={immersive} onQueue={() => setDialog('queue')} onImmersive={() => { if (s.track) setImmersive(true); }} />
     {notice && <div className="toast" role="status">{notice}</div>}
